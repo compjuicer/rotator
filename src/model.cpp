@@ -307,8 +307,10 @@ static void render_track(const Song& song, const Track& t, const HyperSet* set, 
     for (double offset = 0; offset < hi; offset += *data.loop)
       for (const auto& e : data.events)
         if (e.pos < *data.loop) {
-          Event p = placed(song, data, e);
-          emit(p.pos + offset, p);
+          Event p = e;
+          p.pos += offset;
+          p = placed(song, data, p);
+          emit(p.pos, p);
         }
   } else {
     for (const auto& e : data.events) {

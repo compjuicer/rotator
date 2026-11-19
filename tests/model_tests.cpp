@@ -466,3 +466,18 @@ TEST_CASE("entry params copy forward; move keeping length") {
   move_keep_length(s, 'a', 1, 1);  // can't pass the previous entry
   CHECK(bars(s, 'a') == std::vector<int>{1, 6, 10});
 }
+
+TEST_CASE("groove swings the repeats of a looped track") {
+  Song s;
+  Track t = track("D", {note(0)});
+  t.loop = 0.75;
+  t.groove = 6;  // 16F
+  s.patterns[1].tracks[1] = t;
+  s.chains['a'] = {entry(1, 1), entry(2, 1)};
+  auto items = render(s, bar4);
+  std::vector<double> pos;
+  for (auto& e : items[0].events) pos.push_back(e.pos);
+  REQUIRE(pos.size() > 2);
+  CHECK(pos[1] == doctest::Approx(0.854));  // 0.75 is an odd 1/16: swung
+  CHECK(pos[2] == doctest::Approx(1.5));
+}
