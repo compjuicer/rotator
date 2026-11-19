@@ -25,8 +25,9 @@ double g_s = 2, g_ox = 0, g_oy = 0;
 
 struct Drag {
   unsigned id = 0;
-  int start = 0;
-  bool moved = false;
+  int orig = 0;      // value before the gesture
+  double acc = 0;    // current value, fractional while sliding
+  bool ctrl = false; // Ctrl + mouse gesture
 };
 Drag g_drag;
 unsigned g_edit = 0;
@@ -105,6 +106,7 @@ void text(double x, double y, const std::string& s, Font f, int col) {
 }
 
 ImGui_Font* sys_font() { return g_sys; }
+std::string debug_state() { return std::to_string(g_drag.id) + "/" + std::to_string(g_drag.acc) + (g_drag.ctrl ? "c" : ""); }
 
 void text_fit(double x, double y, double w, const std::string& s, int col) {
   double tw = text_w(s, Font::Small);
@@ -278,23 +280,25 @@ bool value(const char* id, double x, double y, double w, double h, Value v, Font
     return changed;
   }
   hit(id, x, y, w, h);
-  if (G::IsItemActivated(g_ctx) && G::IsMouseDown(g_ctx, G::MouseButton_Left)) g_drag = {key, *v.v, false};
-  if (g_drag.id == key && G::IsItemActive(g_ctx)) {
-    double dx = 0, dy = 0;
-    G::GetMouseDragDelta(g_ctx, &dx, &dy, G::MouseButton_Left, 3);
-    if (dy != 0) {
-      g_drag.moved = true;
-      *v.v = std::clamp(g_drag.start - int(std::lround(dy / (4 * g_s))), v.lo, v.hi);
+  bool hov = G::IsItemHovered(g_ctx), ctrl = G::GetKeyMods(g_ctx) & G::Mod_Ctrl;
+  bool l = G::IsMouseDown(g_ctx, G::MouseButton_Left), r = G::IsMouseDown(g_ctx, G::MouseButton_Right);
+  if (!g_drag.id && hov && ctrl && !l && !r) g_drag = {key, *v.v, double(*v.v), true};
+  if (G::IsItemActivated(g_ctx) && !ctrl) {
+    int step = G::IsMouseClicked(g_ctx, G::MouseButton_Right) ? -1 : 1;
+    g_drag = {key, *v.v, double(std::clamp(*v.v + step, v.lo, v.hi)), false};
+  }
+  if (g_drag.id == key) {
+    if (g_drag.ctrl && G::IsMouseClicked(g_ctx, G::MouseButton_Left)) g_drag.acc = std::clamp(v.def, v.lo, v.hi);
+    if (g_drag.ctrl || (slider_mode && (l || r))) {
+      double dx = 0, dy = 0;
+      G::GetMouseDelta(g_ctx, &dx, &dy);
+      g_drag.acc = std::clamp(g_drag.acc - dy / (4 * g_s) * (l && r ? 6 : 1), double(v.lo), double(v.hi));
     }
-  }
-  if (g_drag.id == key && G::IsItemDeactivated(g_ctx)) {
-    if (!g_drag.moved && G::IsItemHovered(g_ctx)) *v.v = std::min(v.hi, *v.v + 1);
-    changed = *v.v != g_drag.start;
-    g_drag = {};
-  }
-  if (right_clicked() && *v.v > v.lo) {
-    --*v.v;
-    changed = true;
+    *v.v = int(std::floor(g_drag.acc + 0.5));
+    if (g_drag.ctrl ? !ctrl : !(l || r)) {
+      changed = *v.v != g_drag.orig;
+      g_drag = {};
+    }
   }
   if (double_clicked()) {
     g_edit = key;

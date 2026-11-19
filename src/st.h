@@ -20,7 +20,10 @@ struct Value {
   int* v;
   int lo, hi;
   std::function<std::string(int)> fmt;  // default: number
+  int def = 0;                          // Ctrl+click resets to this (clamped to lo..hi)
 };
+
+inline bool slider_mode = true;  // Flags > Mouse as Slider: press and slide changes values
 
 void attach_fonts(ImGui_Context*);         // once per context, before its first frame
 void begin(ImGui_Context*, double scale);  // origin = cursor screen pos
@@ -48,10 +51,13 @@ bool button(const char* id, double x, double y, double w, double h, const std::s
             const std::string& hint = "", bool on = false, Font = Font::Sys);
 void header(double x, double y, double w, double h, const std::string& label, Font = Font::Sys);
 
-// Left click +1, right click -1, vertical drag steps, double-click types a value. Returns true when committed.
+// Left click +1, right click -1. Mouse as Slider: hold either button and slide up/down (both buttons = faster).
+// Ctrl + mouse: hover, hold Ctrl and slide; commits on Ctrl release; Ctrl+click resets. Double-click types a value.
+// Returns true when a change is committed.
 bool value(const char* id, double x, double y, double w, double h, Value, Font = Font::Bold, bool right_align = true);
 
 ImGui_Font* sys_font();
+std::string debug_state();
 void text_fit(double x, double y, double w, const std::string&, int col = kInk);  // small font, squeezed to w, centred
 
 struct DrawClip {

@@ -640,6 +640,8 @@ void menu_bar() {
           loop_selected(*g_song);
         }
         G::MenuItem(g_ctx, "Graphic Arrange", "K", &g_gam);
+        G::Separator(g_ctx);
+        G::MenuItem(g_ctx, "Mouse as Slider", nullptr, &st::slider_mode);
       }
       G::EndPopup(g_ctx);
     }
@@ -1267,7 +1269,7 @@ void param_box(Song& song) {
     if (kParams[p].live) {
       int v = t ? get_param(*t, p) : param_default(p);
       auto [lo, hi] = param_range(p);
-      st::Value val{&v, lo, hi, [p](int n) { return param_text(p, n, false); }};
+      st::Value val{&v, lo, hi, [p](int n) { return param_text(p, n, false); }, param_default(p)};
       int before = v;
       bool ch = st::value("##pv", X + 46, y, W - 49, RH, val, Font::Bold);
       if (ch && v != before) {
@@ -1911,7 +1913,7 @@ const char* ui_status() {
       std::to_string(g_pattern) + " track=" + std::to_string(g_track) + " view=" + (g_gam ? "gam" : "list") +
       " page=" + (g_rmg ? "rmg" : g_edit_page ? "edit" : "main") + " origin=" + std::to_string(int(st::sx(0))) + "," +
       std::to_string(int(st::sy(0))) + " scale=" + std::to_string(st::scale()) +
-      " rename=" + (g_rename_key.empty() ? "-" : g_rename_key) + " sel=" + (g_chain ? std::string(1, g_chain) + std::to_string(g_index) : "-") +
+      " drag=" + st::debug_state() + " rename=" + (g_rename_key.empty() ? "-" : g_rename_key) + " sel=" + (g_chain ? std::string(1, g_chain) + std::to_string(g_index) : "-") +
       (g_error.empty() ? "" : " error=" + g_error) + "\n";
   return s.c_str();
 }

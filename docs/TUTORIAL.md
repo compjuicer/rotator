@@ -11,6 +11,14 @@ The window has two halves: **arrange** on the left, **pattern** on the right. Be
 
 Everything you do is one REAPER undo step, saved inside the project file.
 
+### Changing values
+
+Any number on screen works the same way:
+- **Click** raises it by one, **right-click** lowers it by one.
+- **Press and slide** up or down (either button) to change it continuously; hold **both** buttons to go faster. Turn this off with Flags → Mouse as Slider.
+- **Cmd + slide**: point at the value without clicking, hold Cmd and move the mouse; the change is sent when you let go of Cmd. **Cmd+click** resets it to its default.
+- **Double-click** to type a value.
+
 ## 2. Your first pattern
 
 1. In the pattern panel, the selector shows `1 (empty)`. Click **Create**, then type a name, e.g. `Groove`.
