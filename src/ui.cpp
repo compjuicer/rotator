@@ -854,7 +854,7 @@ void arrange_list(Song& song) {
     rotator::Entry& e = song.chains[c][i];
     double y = Y + 2 + (k - g_list_top) * kRowH;
     bool sel = c == g_chain && i == g_index;
-    G::PushID(g_ctx, std::to_string(k).c_str());
+    G::PushID(g_ctx, ("entry" + std::to_string(k)).c_str());
     if (sel) st::fill(X + 2, y, W - 4, kRowH, kInk);
     int col = sel ? kPaper : kInk;
     st::text(X + 2, y, rpad(std::to_string(bar), 3), Font::Bold, col);
