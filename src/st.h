@@ -53,7 +53,8 @@ void header(double x, double y, double w, double h, const std::string& label, Fo
 
 // Left click +1, right click -1. Mouse as Slider: hold either button and slide up/down (both buttons = faster).
 // Ctrl + mouse: hover, hold Ctrl and slide; commits on Ctrl release; Ctrl+click resets. Double-click types a value.
-// Returns true when a change is committed.
+// Returns true on every change: while sliding (final() false, preview only) and when the gesture ends (final() true).
+bool final();
 bool value(const char* id, double x, double y, double w, double h, Value, Font = Font::Bold, bool right_align = true);
 
 ImGui_Font* sys_font();

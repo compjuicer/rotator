@@ -28,7 +28,9 @@ struct Drag {
   int orig = 0;      // value before the gesture
   double acc = 0;    // current value, fractional while sliding
   bool ctrl = false; // Ctrl + mouse gesture
+  int last = 0;      // last value reported live
 };
+bool g_final = true;
 Drag g_drag;
 unsigned g_edit = 0;
 char g_edit_buf[32];
@@ -106,6 +108,7 @@ void text(double x, double y, const std::string& s, Font f, int col) {
 }
 
 ImGui_Font* sys_font() { return g_sys; }
+bool final() { return g_final; }
 std::string debug_state() { return std::to_string(g_drag.id) + "/" + std::to_string(g_drag.acc) + (g_drag.ctrl ? "c" : ""); }
 
 void text_fit(double x, double y, double w, const std::string& s, int col) {
@@ -272,6 +275,7 @@ bool value(const char* id, double x, double y, double w, double h, Value v, Font
                      G::InputTextFlags_EnterReturnsTrue | G::InputTextFlags_AutoSelectAll)) {
       *v.v = std::clamp(std::atoi(g_edit_buf), v.lo, v.hi);
       changed = true;
+      g_final = true;
       g_edit = 0;
     } else if (G::IsKeyPressed(g_ctx, G::Key_Escape) || (!G::IsItemActive(g_ctx) && !G::IsItemActivated(g_ctx) &&
                                                           G::IsMouseClicked(g_ctx, G::MouseButton_Left))) {
@@ -282,10 +286,10 @@ bool value(const char* id, double x, double y, double w, double h, Value v, Font
   hit(id, x, y, w, h);
   bool hov = G::IsItemHovered(g_ctx), ctrl = G::GetKeyMods(g_ctx) & G::Mod_Ctrl;
   bool l = G::IsMouseDown(g_ctx, G::MouseButton_Left), r = G::IsMouseDown(g_ctx, G::MouseButton_Right);
-  if (!g_drag.id && hov && ctrl && !l && !r) g_drag = {key, *v.v, double(*v.v), true};
+  if (!g_drag.id && hov && ctrl && !l && !r) g_drag = {key, *v.v, double(*v.v), true, *v.v};
   if (G::IsItemActivated(g_ctx) && !ctrl) {
     int step = G::IsMouseClicked(g_ctx, G::MouseButton_Right) ? -1 : 1;
-    g_drag = {key, *v.v, double(std::clamp(*v.v + step, v.lo, v.hi)), false};
+    g_drag = {key, *v.v, double(std::clamp(*v.v + step, v.lo, v.hi)), false, *v.v};
   }
   if (g_drag.id == key) {
     if (g_drag.ctrl && G::IsMouseClicked(g_ctx, G::MouseButton_Left)) g_drag.acc = std::clamp(v.def, v.lo, v.hi);
@@ -297,7 +301,12 @@ bool value(const char* id, double x, double y, double w, double h, Value v, Font
     *v.v = int(std::floor(g_drag.acc + 0.5));
     if (g_drag.ctrl ? !ctrl : !(l || r)) {
       changed = *v.v != g_drag.orig;
+      g_final = true;
       g_drag = {};
+    } else if (!g_drag.ctrl && *v.v != g_drag.last) {
+      g_drag.last = *v.v;
+      changed = true;
+      g_final = false;
     }
   }
   if (double_clicked()) {

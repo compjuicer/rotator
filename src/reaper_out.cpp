@@ -61,8 +61,7 @@ std::string track_guid(MediaTrack* tr) {
   return buf;
 }
 
-void render_to_project(const rotator::Song& song) {
-  Undo_BeginBlock();
+void preview(const rotator::Song& song) {
   PreventUIRefresh(1);
   delete_generated();
 
@@ -103,6 +102,11 @@ void render_to_project(const rotator::Song& song) {
 
   PreventUIRefresh(-1);
   UpdateArrange();
+}
+
+void render_to_project(const rotator::Song& song) {
+  Undo_BeginBlock();
+  preview(song);
   Undo_EndBlock("Rotator: render arrange", -1);
 }
 

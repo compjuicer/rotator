@@ -53,6 +53,12 @@ const char* g_op_desc = "";
 
 void commit(const char* desc) { ::commit(g_proj, *g_song, desc); }
 
+// After a value field changed: preview while sliding, undo point when the gesture ends.
+void changed(const char* desc) {
+  if (st::final()) commit(desc);
+  else preview(*g_song);
+}
+
 void later(const char* desc, std::function<bool(Song&)> op) {
   g_op_desc = desc;
   g_op = std::move(op);
@@ -712,7 +718,7 @@ void box_row(Song& song) {
     int v = half ? denom : num;
     st::Value sv{&v, half ? 1 : 1, half ? 64 : 99, [](int n) { return std::string(); }};
     G::PushID(g_ctx, half ? "sigd" : "sign");
-    if (st::value("##sig", 332 + half * 28, 41, 28, 18, sv)) {
+    if (st::value("##sig", 332 + half * 28, 41, 28, 18, sv) && st::final()) {
       if (half) v = v > denom ? std::min(64, denom * 2) : std::max(1, denom / 2);
       set_signature(half ? num : v, half ? v : denom);
     }
@@ -879,7 +885,7 @@ void arrange_list(Song& song) {
         if (ch) {
           e.pattern = pat;
           if (sel) g_pattern = pat;
-          commit("Rotator: entry pattern");
+          changed("Rotator: entry pattern");
         }
       } else if (st::hit("##mv", colx[ci], y, 18, kRowH)) {
         later("Rotator: move entry to chain", [c = c, i = i, to](Song& s) {
@@ -1099,7 +1105,7 @@ void arrange_panel(Song& song) {
     }};
     if (st::value("##shift", 4, 333, 82, 15, v, Font::Bold, false)) {
       e->shift = sh * 48;
-      commit("Rotator: entry upbeat/cut");
+      changed("Rotator: entry upbeat/cut");
     }
   }
   st::text(3, 349, "UP BEAT-", Font::Small);
@@ -1110,7 +1116,7 @@ void arrange_panel(Song& song) {
     st::Value v{&tr, -96, 96, [](int n) { return n ? std::to_string(n) : std::string(); }};
     if (st::value("##etr", 95, 333, 84, 15, v, Font::Bold)) {
       e->transpose = tr;
-      commit("Rotator: entry transpose");
+      changed("Rotator: entry transpose");
     }
   }
   field(0, 357, 90, "Pattern LENGTH");
@@ -1123,14 +1129,14 @@ void arrange_panel(Song& song) {
       int bars = *len;
       st::Value v{&bars, 1, 999, [](int n) { return std::to_string(n) + "  0  0  0"; }};
       if (st::value("##elen", 4, 357, 82, 15, v, Font::Bold) && rotator::set_length(song, g_chain, g_index, bars))
-        commit("Rotator: entry length");
+        changed("Rotator: entry length");
     }
     int bar = e->bar;
     st::Value v{&bar, -9, 9999, [](int n) { return std::to_string(n) + "  1  1  1"; }};
     if (st::value("##epos", 97, 357, 82, 15, v, Font::Bold)) {
       rotator::move_start(song, g_chain, g_index, bar);
       select(g_chain, g_index, song);
-      commit("Rotator: entry bar");
+      changed("Rotator: entry bar");
     }
   }
 }
@@ -1272,9 +1278,9 @@ void param_box(Song& song) {
       st::Value val{&v, lo, hi, [p](int n) { return param_text(p, n, false); }, param_default(p)};
       int before = v;
       bool ch = st::value("##pv", X + 46, y, W - 49, RH, val, Font::Bold);
-      if (ch && v != before) {
-        set_param(ensure_track(song, g_track), p, v);
-        commit("Rotator: track parameter");
+      if (ch) {
+        if (v != before) set_param(ensure_track(song, g_track), p, v);
+        changed("Rotator: track parameter");
       }
       if (sel) {
         std::string s = param_text(p, v, false);

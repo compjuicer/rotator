@@ -1,4 +1,5 @@
 #include "editor.h"
+#include "reaper_out.h"
 
 #include <algorithm>
 #include <cmath>
@@ -128,9 +129,9 @@ void hyper_editor(EditCtx& ec) {
   int fit = std::max(1, int(std::ceil(plen / kQnPerBar - 1e-9)));
   int bars = g_bars > 0 ? g_bars : fit;
   int set_no = g_set;
-  if (value_cell("##set", 0, 46, "SET", {&set_no, 0, nsets - 1, [](int v) { return std::to_string(v + 1); }}) && set_no != g_set) {
+  if (value_cell("##set", 0, 46, "SET", {&set_no, 0, nsets - 1, [](int v) { return std::to_string(v + 1); }})) {
     g_set = set_no;
-    return done("Rotator: hyper set");
+    if (st::final()) return done("Rotator: hyper set");
   }
   G::SetItemTooltip(ctx, "Hyper set: click +, right click -");
   if (value_cell("##bars", 46, 62, "BARS", {&bars, 1, 64, {}})) g_bars = bars;
@@ -304,7 +305,10 @@ void hyper_editor(EditCtx& ec) {
       bool commit = st::value(id, x + 2, vy, kCols[c].w - 4, 16, {&v, lo, hi, std::move(fmt)});
       x += kCols[c].w;
       if (v != v0) apply(v);
-      if (commit) done(desc);
+      if (commit) {
+        if (st::final()) done(desc);
+        else preview(ec.song);
+      }
     };
     int gi = int(std::min_element(std::begin(kGrids), std::end(kGrids),
                                   [&](double a, double b) { return std::abs(a - l.grid) < std::abs(b - l.grid); }) -
