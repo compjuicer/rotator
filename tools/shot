@@ -1,0 +1,6 @@
+#!/bin/sh
+# Capture REAPER's main window. REAPER only repaints while visible, so on a hidden desktop this shows the last painted frame. to $1, default build/shot.png. Needs GetWindowID (brew: smokris/getwindowid).
+out=${1:-"$(dirname "$0")/../build/shot.png"}
+id=$(GetWindowID REAPER --list | grep -m1 ' - REAPER v' | sed 's/.*id=//')
+[ -n "$id" ] || { echo "no REAPER main window" >&2; exit 1; }
+screencapture -x -o -l "$id" "$out" && echo "$out"

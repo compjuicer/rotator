@@ -1,0 +1,15 @@
+build/
+vdo/
+.bridge/
+.claude/settings.local.json
+.DS_Store
+
+# the original publisher's copyrighted material (manual, video): kept locally, never committed
+*.pdf
+text/
+docs/manual-screens/
+docs/manual-figures/
+docs/look/
+docs/video-frames/
+.cache/
+.claude/settings.json

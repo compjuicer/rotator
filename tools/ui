@@ -1,0 +1,55 @@
+#!/usr/bin/env python3
+"""Drive the Rotator window with the mouse, in ST-pixel coordinates (640x400 page).
+
+usage: tools/ui [--stay] <action> [...]   (--stay: leave REAPER in front, e.g. to screenshot an open menu)
+  c X Y        left click        rc X Y   right click       dc X Y   double click
+  drag X1 Y1 X2 Y2               left drag
+  key K        cliclick key name or character (kp:... / t:text)
+Brings REAPER to the front for the batch, then returns to iTerm. Needs cliclick, run outside the sandbox.
+"""
+import os
+import re
+import subprocess
+import sys
+
+ROOT = os.path.dirname(os.path.abspath(__file__))
+
+
+def status():
+    out = subprocess.run([os.path.join(ROOT, "reaper"), "dump"], capture_output=True, text=True).stdout
+    m = re.search(r"origin=(-?\d+),(-?\d+) scale=([\d.]+)", out)
+    if not m:
+        sys.exit("no ui status (is the Rotator window open?)")
+    return int(m[1]), int(m[2]), float(m[3])
+
+
+def main(args):
+    stay = args[:1] == ["--stay"]
+    args = args[1:] if stay else args
+    ox, oy, s = status()
+    pt = lambda x, y: f"{round(ox + (float(x) + 0.5) * s)},{round(oy + (float(y) + 0.5) * s)}"
+    cmds, i = [], 0
+    while i < len(args):
+        a = args[i]
+        if a in ("c", "rc", "dc"):
+            p = pt(args[i + 1], args[i + 2])
+            press = [f"dd:{p}", "w:60", f"du:{p}"]
+            cmds += [f"m:{p}", "w:120"] + {"c": press, "rc": [f"rc:{p}"], "dc": [f"dc:{p}"]}[a] + ["w:150"]
+            i += 3
+        elif a == "drag":
+            cmds += [f"m:{pt(args[i + 1], args[i + 2])}", "w:120", f"dd:{pt(args[i + 1], args[i + 2])}", "w:100", f"dm:{pt(args[i + 3], args[i + 4])}", "w:100",
+                     f"du:{pt(args[i + 3], args[i + 4])}", "w:150"]
+            i += 5
+        elif a == "key":
+            k = args[i + 1]
+            cmds += [k if ":" in k else f"t:{k}", "w:150"]
+            i += 2
+        else:
+            sys.exit(__doc__.strip())
+    subprocess.run(["osascript", "-e", 'tell application "REAPER" to activate'])
+    subprocess.run(["cliclick", "w:300", *cmds])
+    if not stay:
+        subprocess.run(["osascript", "-e", 'tell application "iTerm" to activate'])
+
+
+main(sys.argv[1:])
