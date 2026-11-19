@@ -7,6 +7,7 @@
 #include "lineparse.h"
 
 #include <cinttypes>
+#include <fstream>
 #include <cstring>
 #include <map>
 #include <sstream>
@@ -146,6 +147,16 @@ void debug_command() {
     e.bar = t;
     e.pattern = p;
     if (rotator::add_entry(g_songs[proj], ch, e) >= 0) commit(proj, g_songs[proj], "Rotator: add entry");
+  }
+  else if (c.rfind("loadsong ", 0) == 0) {  // replace the song with song lines from a file (as printed by dump)
+    std::ifstream in(c.substr(9));
+    std::vector<std::string> lines;
+    for (std::string l; std::getline(in, l);) lines.push_back(l);
+    if (!lines.empty()) {
+      ReaProject* proj = current();
+      g_songs[proj] = rotator::from_lines(lines);
+      commit(proj, g_songs[proj], "Rotator: load song lines");
+    }
   }
   else if (sscanf(c.c_str(), "capture %d %d", &p, &t) == 2) {
     ReaProject* proj = current();
