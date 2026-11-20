@@ -180,7 +180,7 @@ void poll_bridge() {
     std::string name = e.path().filename().string();
     if (name.size() > 8 && !name.compare(0, 4, "cmd-") && !name.compare(name.size() - 4, 4, ".txt")) {
       std::string seq = name.substr(4, name.size() - 8);
-      if (seq.find_first_not_of("0123456789") == std::string::npos) cmds.push_back({std::stoull(seq), seq});
+      if (!seq.empty() && seq.size() <= 19 && seq.find_first_not_of("0123456789") == std::string::npos) cmds.push_back({std::stoull(seq), seq});
     }
   }
   std::sort(cmds.begin(), cmds.end());

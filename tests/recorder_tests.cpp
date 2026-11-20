@@ -47,3 +47,14 @@ TEST_CASE("recorder: positions and lengths land on 1/192 QN ticks") {
   CHECK(ev[0].pos * 192 == doctest::Approx(1103));
   CHECK(ev[0].len * 192 == doctest::Approx(276));
 }
+
+TEST_CASE("recorder: a repeated note-on closes the earlier note") {
+  Recorder r;
+  r.len = 16;
+  std::vector<Event> ev;
+  r.feed(0x90, 60, 100, 1, ev);
+  r.feed(0x90, 60, 100, 2, ev);
+  r.feed(0x80, 60, 0, 2.5, ev);
+  CHECK(ev[0].len == 1);
+  CHECK(ev[1].len == 0.5);
+}

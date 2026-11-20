@@ -29,6 +29,7 @@ struct Drag {
   double acc = 0;    // current value, fractional while sliding
   bool ctrl = false; // Ctrl + mouse gesture
   int last = 0;      // last value reported live
+  int frame = 0;     // last frame the widget was drawn
 };
 bool g_final = true;
 Drag g_drag;
@@ -284,14 +285,20 @@ bool value(const char* id, double x, double y, double w, double h, Value v, Font
     return changed;
   }
   hit(id, x, y, w, h);
+  int frame = G::GetFrameCount(g_ctx);
   bool hov = G::IsItemHovered(g_ctx), ctrl = G::GetKeyMods(g_ctx) & G::Mod_Ctrl;
+  static int seen = -1;
+  static bool ctrl_now = false, ctrl_before = false;
+  if (frame != seen) ctrl_before = ctrl_now, ctrl_now = ctrl, seen = frame;
+  if (g_drag.id && g_drag.id != key && g_drag.frame < frame - 30) g_drag = {};  // its widget hasn't been drawn for a while
   bool l = G::IsMouseDown(g_ctx, G::MouseButton_Left), r = G::IsMouseDown(g_ctx, G::MouseButton_Right);
-  if (!g_drag.id && hov && ctrl && !l && !r) g_drag = {key, *v.v, double(*v.v), true, *v.v};
+  if (!g_drag.id && hov && ctrl_now && !ctrl_before && !l && !r) g_drag = {key, *v.v, double(*v.v), true, *v.v, frame};
   if (G::IsItemActivated(g_ctx) && !ctrl) {
     int step = G::IsMouseClicked(g_ctx, G::MouseButton_Right) ? -1 : 1;
-    g_drag = {key, *v.v, double(std::clamp(*v.v + step, v.lo, v.hi)), false, *v.v};
+    g_drag = {key, *v.v, double(std::clamp(*v.v + step, v.lo, v.hi)), false, *v.v, frame};
   }
   if (g_drag.id == key) {
+    g_drag.frame = frame;
     if (g_drag.ctrl && G::IsMouseClicked(g_ctx, G::MouseButton_Left)) g_drag.acc = std::clamp(v.def, v.lo, v.hi);
     if (g_drag.ctrl || (slider_mode && (l || r))) {
       double dx = 0, dy = 0;

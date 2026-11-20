@@ -364,9 +364,11 @@ std::vector<Placement> placements(const Song& song, int pattern, const std::func
     std::stable_sort(entries.begin(), entries.end(), [](const Entry& x, const Entry& y) { return x.bar < y.bar; });
     for (size_t k = 0; k < entries.size(); ++k) {
       if (entries[k].pattern != pattern) continue;
-      double start = bar_to_qn(entries[k].bar);
-      double end = k + 1 < entries.size() ? bar_to_qn(entries[k + 1].bar) : start + pattern_length(pit->second);
-      if (end > start) out.push_back({entries[k].bar, start, end});
+      double origin = bar_to_qn(entries[k].bar);
+      double start = origin + entries[k].shift / 192.0;
+      double end = k + 1 < entries.size() ? bar_to_qn(entries[k + 1].bar) + entries[k + 1].shift / 192.0
+                                          : origin + pattern_length(pit->second);
+      if (end > start) out.push_back({entries[k].bar, origin, end});
     }
   }
   std::stable_sort(out.begin(), out.end(), [](const Placement& a, const Placement& b) { return a.start < b.start; });

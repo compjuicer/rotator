@@ -36,7 +36,13 @@ bool Recorder::feed(int status, int d1, int d2, double qn, std::vector<Event>& o
     case 0xA0: out.push_back({EventType::PolyPressure, pos, chan, d1, d2}); break;
     default: return false;
   }
-  if (on) held_[{chan, d1}] = {out.size() - 1, pos};
+  if (on) {
+    if (auto it = held_.find({chan, d1}); it != held_.end()) {
+      double l = pos - it->second.second;
+      out[it->second.first].len = std::max(1 / 192.0, tick(l > 0 ? l : l + (cycle ? len : 0)));
+    }
+    held_[{chan, d1}] = {out.size() - 1, pos};
+  }
   return !on;
 }
 

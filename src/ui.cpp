@@ -453,14 +453,21 @@ void rec_poll(Song& song) {
       msgs.push_back({(unsigned char)buf[0], (unsigned char)buf[1], sz > 2 ? (unsigned char)buf[2] : 0, pp});
   }
   if (newest >= 0) g_rec.seq = newest;
-  for (auto m = msgs.rbegin(); m != msgs.rend(); ++m) g_rec.r.feed(m->s, m->d1, m->d2, TimeMap2_timeToQN(g_proj, m->pos), g_rec.buf);
-  double qn = TimeMap2_timeToQN(g_proj, playing ? GetPlayPositionEx(g_proj) : GetCursorPositionEx(g_proj));
-  if (playing && g_rec.r.cycle && g_rec.last_qn >= 0 && qn + 0.5 < g_rec.last_qn) {
-    g_rec.r.finish(g_rec.r.origin + g_rec.r.len - 1e-6, g_rec.buf);
-    rec_merge(song, "Rotator: record pass");
+  // A jump back means the cycle wrapped: close the pass before anything played after the wrap.
+  auto advance = [&](double qn) {
+    if (g_rec.r.cycle && g_rec.last_qn >= 0 && qn + 0.5 < g_rec.last_qn) {
+      g_rec.r.finish(g_rec.r.origin + g_rec.r.len - 1e-6, g_rec.buf);
+      rec_merge(song, "Rotator: record pass");
+    }
+    g_rec.last_qn = qn;
+  };
+  for (auto m = msgs.rbegin(); m != msgs.rend(); ++m) {
+    double qn = TimeMap2_timeToQN(g_proj, m->pos);
+    advance(qn);
+    g_rec.r.feed(m->s, m->d1, m->d2, qn, g_rec.buf);
   }
-  g_rec.last_qn = qn;
-  if (!playing) {
+  if (playing) advance(TimeMap2_timeToQN(g_proj, GetPlayPositionEx(g_proj)));
+  else {
     g_rec.r.finish(g_rec.last_qn, g_rec.buf);
     rec_merge(song, "Rotator: record");
     g_rec.on = false;
@@ -895,11 +902,11 @@ void arrange_list(Song& song) {
       }
       G::PopID(g_ctx);
     }
-    rename_box("entry", X + 30, y, 70, [&e, sel](const std::string& n) {
-      if (!sel) return;
-      e.name = n;
-      commit("Rotator: entry name");
-    });
+    if (sel)
+      rename_box("entry", X + 30, y, 70, [&e](const std::string& n) {
+        e.name = n;
+        commit("Rotator: entry name");
+      });
     G::PopID(g_ctx);
   }
 }

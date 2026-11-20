@@ -419,6 +419,10 @@ void hyper_editor(EditCtx& ec) {
     G::PopID(ctx);
   }
   lanes_clip.pop();
+  if (g_g.mode != Mode::None && !G::IsMouseDown(ctx, G::MouseButton_Left) && !G::IsMouseDown(ctx, G::MouseButton_Right)) {
+    if (!same(g_g.before, trk.events)) done("Rotator: hyper edit");  // lane scrolled out of view mid-gesture
+    g_g = {};
+  }
   if (g_g.lane >= nl) g_g = {};
   if (g_rename >= nl) g_rename = -2;
   if (nl > vis) {

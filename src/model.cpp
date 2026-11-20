@@ -172,7 +172,7 @@ static double toward(double pos, double target, int range, int strength) {
 }
 
 static double groove_pos(const Song& s, int groove, double pos) {
-  if (groove <= 12) return grooved(pos, groove);
+  if (groove <= 12 || groove > 28) return grooved(pos, groove);
   const UserGroove& g = s.grooves[groove - 13];
   auto p = template_point(s, g, pos);
   return p ? toward(pos, p->first, g.range, g.strength) : pos;

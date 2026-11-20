@@ -122,7 +122,7 @@ Song from_lines(const std::vector<std::string>& lines) {
       trk->hide = lp.gettoken_int(12);
       if (n >= 14) trk->quantize = lp.gettoken_int(13);
       if (n >= 18) {
-        trk->groove = lp.gettoken_int(14);
+        trk->groove = std::clamp(lp.gettoken_int(14), 0, 28);
         trk->compress = lp.gettoken_int(15);
         trk->ghost_pattern = lp.gettoken_int(16);
         trk->ghost_track = lp.gettoken_int(17);
