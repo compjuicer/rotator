@@ -1,6 +1,8 @@
 #include "doctest.h"
 #include "ed_hyper_ops.h"
 
+#include <algorithm>
+
 using namespace rotator;
 
 static Event nt(double pos, int pitch, int vel = 100, int chan = 10) { return {EventType::Note, pos, chan, pitch, vel, 0.1}; }

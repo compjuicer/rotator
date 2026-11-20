@@ -1,5 +1,6 @@
 #include "recorder.h"
 
+#include <algorithm>
 #include <cmath>
 
 namespace rotator {

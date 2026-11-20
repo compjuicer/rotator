@@ -17,6 +17,7 @@ set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 
 add_library(rotator_model STATIC src/model.cpp src/song_io.cpp src/ed_event_ops.cpp src/ed_matrix_ops.cpp src/ed_hyper_ops.cpp src/recorder.cpp)
 target_include_directories(rotator_model PUBLIC src)
+set_target_properties(rotator_model PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_include_directories(rotator_model SYSTEM PRIVATE vendor/reaper-sdk/WDL)
 
 if(WIN32)
