@@ -60,7 +60,7 @@ struct Track {
   double delay = 0;              // QN
   int lowest = 0, highest = 127;
   int quantize = 0;              // grid as a note-value divisor (16 = 1/16); 0 = off. Note starts only, playback only
-  int groove = 0;                // 0 off, 1-6 = 16A-16F, 7-12 = 8A-8F (swing 50 .. 70.8 %), 13-28 = user grooves Us1-Us16
+  int groove = 0;                // 0 off, 1-12 16A..8F swing, 13-18 8-12 1216 five sept nine Free, 19-34 user Us1-Us16
   int compress = 0;              // velocity around 64: 1 = 1:2, 2 = 1:4, 3 = 1:8, 4 = fix, -1 = expand 1:2, -2 = 1:4
   int ghost_pattern = 0, ghost_track = 0;  // play that track's events through these parameters; 0 = no ghost
   int filter = 0;                // output filter: bit (1 << EventType) blocks that type
@@ -126,7 +126,8 @@ void merge_tracks(Pattern&, int src, int dst);     // src events added to dst; s
 double quantized(double pos, int quantize);        // pos (QN from pattern start) snapped to the 1/quantize grid
 double grooved(double pos, int groove);            // pos snapped to the swing grid of a groove preset
 int compressed(int velocity, int compress);
-std::string groove_name(int groove);               // "16A" .. "8F", "Us1" .. "Us16", "" when off
+constexpr int kFirstUserGroove = 19, kLastGroove = 34;
+std::string groove_name(int groove);               // "16A" .. "Free", "Us1" .. "Us16", "" when off
 Event placed(const Song&, const Track&, Event);    // quantize then groove, per the song's quantize mode
 void do_quantize(const Song&, Track&);             // bake quantize and groove into the events, then switch them off
 bool dynamic_groove(const Song&, Track&, int user_groove, int amount);  // template velocities, amount 0-15

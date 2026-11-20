@@ -431,8 +431,8 @@ TEST_CASE("user groove snaps to a looped template; dynamic groove copies velocit
   s.patterns[9].tracks[1] = tpl;
   s.grooves[0] = {9, 1, 0, 100};
   Track t = track("A", {note(2.55)});
-  t.groove = 13;
-  CHECK(groove_name(13) == "Us1");
+  t.groove = kFirstUserGroove;
+  CHECK(groove_name(kFirstUserGroove) == "Us1");
   CHECK(placed(s, t, t.events[0]).pos == doctest::Approx(2.6));
   CHECK(dynamic_groove(s, t, 0, 15));
   CHECK(t.events[0].data2 == 120);
@@ -480,4 +480,17 @@ TEST_CASE("groove swings the repeats of a looped track") {
   REQUIRE(pos.size() > 2);
   CHECK(pos[1] == doctest::Approx(0.854));  // 0.75 is an odd 1/16: swung
   CHECK(pos[2] == doctest::Approx(1.5));
+}
+
+TEST_CASE("triplet, tuplet and Free grooves") {
+  CHECK(groove_name(13) == "8-12");
+  CHECK(groove_name(18) == "Free");
+  CHECK(grooved(0.36, 13) == doctest::Approx(1.0 / 3));   // nearer the triplet than the 1/8
+  CHECK(grooved(0.45, 13) == doctest::Approx(0.5));
+  CHECK(grooved(0.27, 14) == doctest::Approx(0.25));
+  CHECK(grooved(0.19, 15) == doctest::Approx(0.2));
+  CHECK(grooved(0.15, 16) == doctest::Approx(1.0 / 7));
+  CHECK(grooved(0.3, 18) == doctest::Approx(0.3));         // inside the free zone: untouched
+  CHECK(grooved(0.2, 18) == doctest::Approx(0.25));
+  CHECK(grooved(0.4, 18) == doctest::Approx(1.0 / 3));
 }

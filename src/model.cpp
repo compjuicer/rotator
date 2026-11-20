@@ -116,7 +116,28 @@ double quantized(double pos, int quantize) {
 
 static constexpr double kSwing[] = {0.5, 0.541, 0.583, 0.625, 0.666, 0.708};
 
+static double nearest(double pos, std::initializer_list<double> grids) {
+  double best = pos, d = 1e9;
+  for (double g : grids) {
+    double c = std::round(pos / g) * g;
+    if (std::abs(c - pos) < d) best = c, d = std::abs(c - pos);
+  }
+  return best;
+}
+
 double grooved(double pos, int groove) {
+  switch (groove) {
+    case 13: return nearest(pos, {0.5, 1.0 / 3});        // 8-12: 1/8 or 1/8 triplets
+    case 14: return nearest(pos, {0.25, 1.0 / 3});       // 1216: 1/16 or 1/8 triplets
+    case 15: return nearest(pos, {0.2});                  // quintuplets
+    case 16: return nearest(pos, {1.0 / 7});              // septuplets
+    case 17: return nearest(pos, {1.0 / 9});              // nine-tuplets
+    case 18: {                                            // Free: offbeats between 1/16 and the 3rd triplet stay
+      double base = std::floor(pos / 0.5) * 0.5, r = pos - base;
+      if (r >= 0.25 && r <= 1.0 / 3) return pos;
+      return nearest(pos, {0.25, 1.0 / 3});
+    }
+  }
   if (groove <= 0 || groove > 12) return pos;
   double step = groove <= 6 ? 0.25 : 0.5, pair = 2 * step;
   double base = std::floor(pos / pair) * pair;
@@ -127,7 +148,9 @@ double grooved(double pos, int groove) {
 }
 
 std::string groove_name(int groove) {
-  if (groove > 12 && groove <= 28) return "Us" + std::to_string(groove - 12);
+  static const char* other[] = {"8-12", "1216", "five", "sept", "nine", "Free"};
+  if (groove >= kFirstUserGroove && groove <= kLastGroove) return "Us" + std::to_string(groove - kFirstUserGroove + 1);
+  if (groove > 12 && groove < kFirstUserGroove) return other[groove - 13];
   if (groove <= 0 || groove > 12) return "";
   return (groove <= 6 ? "16" : "8") + std::string(1, char('A' + (groove - 1) % 6));
 }
@@ -172,8 +195,8 @@ static double toward(double pos, double target, int range, int strength) {
 }
 
 static double groove_pos(const Song& s, int groove, double pos) {
-  if (groove <= 12 || groove > 28) return grooved(pos, groove);
-  const UserGroove& g = s.grooves[groove - 13];
+  if (groove < kFirstUserGroove || groove > kLastGroove) return grooved(pos, groove);
+  const UserGroove& g = s.grooves[groove - kFirstUserGroove];
   auto p = template_point(s, g, pos);
   return p ? toward(pos, p->first, g.range, g.strength) : pos;
 }

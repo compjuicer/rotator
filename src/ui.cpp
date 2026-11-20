@@ -276,7 +276,7 @@ std::pair<int, int> param_range(int p) {
     case 0: return {0, std::max(0, CountTracks(g_proj))};
     case 1: return {0, 16};
     case 2: return {0, 10};
-    case 3: return {0, 28};
+    case 3: return {0, rotator::kLastGroove};
     case 6: return {-2, 4};
     case 11: return {0, 99 * 16};
     case 4: return {-96, 96};
