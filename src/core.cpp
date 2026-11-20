@@ -264,7 +264,7 @@ const RotatorCore kCore = {
 
 }  // namespace
 
-extern "C" __attribute__((visibility("default"))) const RotatorCore* rotator_core_init(void* (*get_func)(const char*)) {
+extern "C" REAPER_PLUGIN_DLL_EXPORT const RotatorCore* rotator_core_init(void* (*get_func)(const char*)) {
   if (REAPERAPI_LoadAPI(get_func)) return nullptr;
   ui_init(get_func);
   plugin_register("timer", (void*)tick);

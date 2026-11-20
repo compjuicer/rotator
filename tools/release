@@ -1,13 +1,12 @@
 #!/bin/sh
-# Build the release plugin, publish it as a GitHub release and point index.xml (ReaPack) at it.
+# Tag a release: writes index.xml (ReaPack), commits, tags and pushes. The build workflow then builds the plugin on
+# macOS, Windows and Linux and attaches the three files to the GitHub release.
 # usage: tools/release <version>      e.g. tools/release 0.1.0
 set -e
 v=${1:?usage: tools/release <version>}
 cd "$(dirname "$0")/.."
 repo=$(gh repo view --json nameWithOwner -q .nameWithOwner)
-cmake -S . -B build-release -G Ninja -DROTATOR_DEV=OFF -DCMAKE_BUILD_TYPE=Release
-cmake --build build-release --target reaper_rotator
-url="https://github.com/$repo/releases/download/v$v/reaper_rotator.dylib"
+dl="https://github.com/$repo/releases/download/v$v"
 time=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 cat > index.xml <<EOF
 <?xml version="1.0" encoding="utf-8"?>
@@ -19,7 +18,9 @@ cat > index.xml <<EOF
         <link rel="website">https://github.com/$repo</link>
       </metadata>
       <version name="$v" author="$(gh api user -q .login)" time="$time">
-        <source platform="darwin" file="reaper_rotator.dylib">$url</source>
+        <source platform="darwin" file="reaper_rotator.dylib">$dl/reaper_rotator.dylib</source>
+        <source platform="win64" file="reaper_rotator.dll">$dl/reaper_rotator.dll</source>
+        <source platform="linux64" file="reaper_rotator.so">$dl/reaper_rotator.so</source>
       </version>
     </reapack>
   </category>
@@ -29,4 +30,4 @@ git add index.xml
 git commit -m "Release $v"
 git tag "v$v"
 git push origin HEAD "v$v"
-gh release create "v$v" build-release/reaper_rotator.dylib --title "Rotator $v" --notes "macOS universal (Apple Silicon + Intel). Needs ReaImGui."
+echo "pushed v$v; the build workflow attaches the plugins to the release"

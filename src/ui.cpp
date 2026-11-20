@@ -494,7 +494,11 @@ std::string project_dir() {
 }
 
 void choose_file(const std::string& op, const std::string& ext, bool load, std::function<void(const std::string&)> done) {
+#ifdef _WIN32
+  const char* h = getenv("USERPROFILE");
+#else
   const char* h = getenv("HOME");
+#endif
   std::string home = h ? h : "/", proj = project_dir();
   std::string dir = !g_file_dir.empty() ? g_file_dir : !proj.empty() ? proj : home + "/Documents";
   gem::file_select(op, dir, ext, load,

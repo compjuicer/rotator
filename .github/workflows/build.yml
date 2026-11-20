@@ -1,0 +1,44 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            file: reaper_rotator.dylib
+          - os: windows-latest
+            file: Release/reaper_rotator.dll
+          - os: ubuntu-latest
+            file: reaper_rotator.so
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S . -B build -DROTATOR_DEV=OFF -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build --config Release --target reaper_rotator model_tests
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os }}
+          path: build/${{ matrix.file }}
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "Rotator ${GITHUB_REF_NAME#v}" --notes "Needs ReaImGui." || true
+          gh release upload "$GITHUB_REF_NAME" "build/${{ matrix.file }}" --clobber

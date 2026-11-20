@@ -26,7 +26,7 @@ See [docs/TUTORIAL.md](docs/TUTORIAL.md) for a walkthrough.
 
 ## Requirements
 
-- REAPER 7 on macOS (Apple Silicon or Intel)
+- REAPER 7 on macOS (Apple Silicon or Intel), Windows (x64) or Linux (x86_64). Developed and tested on macOS; Windows and Linux builds come from CI and are untested.
 - [ReaImGui](https://github.com/cfillion/reaimgui) 0.10, installed via ReaPack
 
 ## Install
@@ -50,7 +50,7 @@ cmake --build build --target install_link   # symlinks the plugin into REAPER's 
 
 Restart REAPER, then run the action **Rotator: Show window**.
 
-This dev build hot-reloads the core and has a file bridge for the `tools/` scripts. `-DROTATOR_DEV=OFF` builds the single self-contained plugin that ships; `tools/release <version>` builds it, publishes a GitHub release and updates `index.xml`.
+This dev build hot-reloads the core and has a file bridge for the `tools/` scripts. `-DROTATOR_DEV=OFF` builds the single self-contained plugin that ships; `tools/release <version>` writes `index.xml` and pushes a tag; the build workflow then builds macOS, Windows and Linux plugins and attaches them to the GitHub release.
 
 ## Status
 
