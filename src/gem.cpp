@@ -110,9 +110,9 @@ void shape(double x, double y, double (*inset)(int), int d, int col) {
 
 void icon(Icon k, double x, double y) {
   if (k == Icon::None) return;
-  double (*f)(int) = k == Icon::Question ? [](int r) { return std::floor(r / 2.0); }
-                     : k == Icon::Note   ? [](int r) { return std::floor((31 - r) / 2.0); }
-                                         : [](int r) { return double(std::max({0, 9 - r, r - 22})); };
+  double (*f)(int) = k == Icon::Question ? +[](int r) { return std::floor(r / 2.0); }
+                     : k == Icon::Note   ? +[](int r) { return std::floor((31 - r) / 2.0); }
+                                         : +[](int r) { return double(std::max({0, 9 - r, r - 22})); };
   shape(x, y, f, 0, kInk);
   shape(x, y, f, 2, kPaper);
   shape(x, y, f, 3, kInk);

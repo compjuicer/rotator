@@ -12,8 +12,10 @@
 extern "C" const RotatorCore* rotator_core_init(void* (*get_func)(const char*));
 #endif
 
+#ifdef ROTATOR_DEV
 #include <dlfcn.h>
 #include <unistd.h>
+#endif
 
 #include <algorithm>
 #include <cctype>
