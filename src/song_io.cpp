@@ -91,6 +91,11 @@ std::vector<std::string> to_lines(const Song& song) {
   if (song.solo_track) out.push_back("SOLO " + std::string(1, song.solo_chain) + " " + std::to_string(song.solo_track));
   for (const auto& [dest, ch] : song.no_arrange_transpose)
     out.push_back("NOXPOSE " + quote(dest) + " " + std::to_string(ch));
+  for (size_t a = 0; !song.notes.empty() && a <= song.notes.size();) {
+    size_t b = std::min(song.notes.find('\n', a), song.notes.size());
+    out.push_back("NOTE " + quote(song.notes.substr(a, b - a)));
+    a = b + 1;
+  }
   return out;
 }
 
@@ -98,6 +103,7 @@ Song from_lines(const std::vector<std::string>& lines) {
   Song song;
   Pattern* pat = nullptr;
   Track* trk = nullptr;
+  bool note = false;
   LineParser lp;
   for (const std::string& line : lines) {
     if (lp.parse_ex(line.c_str()) < 0 || lp.getnumtokens() < 1) continue;
@@ -183,6 +189,9 @@ Song from_lines(const std::vector<std::string>& lines) {
       song.solo_track = lp.gettoken_int(2);
     } else if (rec == "NOXPOSE" && n >= 3) {
       song.no_arrange_transpose.insert({lp.gettoken_str(1), lp.gettoken_int(2)});
+    } else if (rec == "NOTE" && n >= 2) {
+      song.notes += (note ? "\n" : "") + std::string(lp.gettoken_str(1));
+      note = true;
     } else if (rec == "ENTRY" && n >= 7) {
       Entry e;
       e.bar = lp.gettoken_int(2);

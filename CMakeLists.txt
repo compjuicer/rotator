@@ -35,7 +35,7 @@ foreach(pair "kFontAtari8x16:AtariST_8x16.ttf" "kFont6x6:Rotator_6x6.ttf")
   set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/vendor/fonts/${file}")
 endforeach()
 
-set(CORE_SOURCES src/core.cpp src/reaper_out.cpp src/ui.cpp src/ed_event.cpp src/ed_matrix.cpp src/ed_hyper.cpp src/st.cpp)
+set(CORE_SOURCES src/core.cpp src/reaper_out.cpp src/ui.cpp src/ed_event.cpp src/ed_matrix.cpp src/ed_hyper.cpp src/st.cpp src/gem.cpp)
 set(PLUGINS reaper_rotator)
 if(ROTATOR_DEV)
   list(APPEND PLUGINS rotator_core)

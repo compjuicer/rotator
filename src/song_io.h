@@ -21,6 +21,7 @@
 //   MGROUP <1-10> "<muted track numbers>"
 //   SOLO <chain> <track>                                 only that track number plays in that chain
 //   NOXPOSE "<dest guid>" <chan 1-16>                    arrange transpose ignored for this destination+channel
+//   NOTE "<text line>"                                   one line of the song notes, in order
 // Unknown records are ignored so the format can grow.
 #include <string>
 #include <vector>

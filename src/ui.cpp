@@ -7,12 +7,16 @@
 #include "editor.h"
 #include "ed_event_ops.h"
 #include "st.h"
+#include "gem.h"
 #include "recorder.h"
+#include "song_io.h"
 
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
+#include <fstream>
 #include <functional>
 #include <string>
 #include <tuple>
@@ -41,8 +45,7 @@ int g_dock_req = 0;
 bool g_arrange_on = true, g_gam = false, g_edit_page = false, g_catch = true, g_rmg = false;
 char g_view_chain = 'a';
 int g_param = 1, g_list_top = 0;
-int g_xsrc = 0, g_xdst = 0;
-bool g_open_xchg = false, g_open_nx = false, g_open_ugroove = false, g_open_filter = false;
+bool g_open_nx = false, g_open_ugroove = false, g_open_filter = false;
 double g_midi_in_t = -10;
 int g_midi_seq = -1;
 
@@ -475,6 +478,75 @@ void rec_poll(Song& song) {
   }
 }
 
+void confirm(gem::Icon icon, const std::string& msg, const char* desc, std::function<bool(Song&)> op) {
+  gem::alert(icon, msg, {"Cancel", "OK"}, 1, [desc, op](int b) {
+    if (b == 1) later(desc, op);
+  });
+}
+
+std::string g_file_dir;
+
+std::string project_dir() {
+  char buf[4096];
+  for (int i = 0; ReaProject* p = EnumProjects(i, buf, sizeof buf); ++i)
+    if (p == g_proj && *buf) return std::filesystem::path(buf).parent_path().string();
+  return "";
+}
+
+void choose_file(const std::string& op, const std::string& ext, bool load, std::function<void(const std::string&)> done) {
+  const char* h = getenv("HOME");
+  std::string home = h ? h : "/", proj = project_dir();
+  std::string dir = !g_file_dir.empty() ? g_file_dir : !proj.empty() ? proj : home + "/Documents";
+  gem::file_select(op, dir, ext, load,
+                   {{"Home", home}, {"Desktop", home + "/Desktop"}, {"Documents", home + "/Documents"}, {"Project", proj}},
+                   [load, done](const std::string& path) {
+                     g_file_dir = std::filesystem::path(path).parent_path().string();
+                     std::error_code ec;
+                     if (load || !std::filesystem::exists(path, ec)) return done(path);
+                     gem::alert(gem::Icon::Question, std::filesystem::path(path).filename().string() + " exists.\nReplace it?",
+                                {"Cancel", "OK"}, 1, [done, path](int b) {
+                                  if (b == 1) done(path);
+                                });
+                   });
+}
+
+bool read_lines(const std::string& path, std::vector<std::string>& out) {
+  std::ifstream in(path);
+  for (std::string l; std::getline(in, l);) out.push_back(!l.empty() && l.back() == '\r' ? l.substr(0, l.size() - 1) : l);
+  return !in.bad() && in.eof();
+}
+
+void cant(const std::string& what, const std::string& path) {
+  gem::alert(gem::Icon::Note, "Can't " + what + "\n" + std::filesystem::path(path).filename().string(), {"Cancel"}, 0, nullptr);
+}
+
+void save(const std::string& path, const std::vector<std::string>& lines) {
+  std::ofstream out(path);
+  for (const std::string& l : lines) out << l << '\n';
+  if (!out) cant("write", path);
+}
+
+void load_song(const std::string& path) {
+  std::vector<std::string> lines;
+  if (!read_lines(path, lines)) return cant("read", path);
+  later("Rotator: load song", [song = rotator::from_lines(lines)](Song& s) {
+    s = song;
+    return true;
+  });
+}
+
+void load_pattern(const std::string& path) {
+  std::vector<std::string> lines;
+  Song f = rotator::from_lines(read_lines(path, lines) ? lines : std::vector<std::string>{});
+  if (f.patterns.empty()) return cant("load a pattern from", path);
+  later("Rotator: load pattern", [p = f.patterns.begin()->second](Song& s) {
+    rotator::Pattern& dst = s.patterns[g_pattern] = p;
+    for (auto& [n, t] : dst.tracks)
+      if (t.hyper_set >= int(s.hyper_sets.size())) t.hyper_set = -1;
+    return true;
+  });
+}
+
 void menu_bar() {
   st::fill(0, 0, 640, 19, kPaper);
   st::fill(0, 18, 640, 1, kInk);
@@ -483,13 +555,22 @@ void menu_bar() {
     st::text(320 - st::text_w(help) / 2, 1, help);
     return;
   }
+  if (const std::string& op = gem::file_op(); !op.empty()) {
+    std::string spaced;
+    for (char c : op) spaced += spaced.empty() ? std::string(1, c) : std::string(" ") + c;
+    st::text(320 - st::text_w(spaced) / 2, 1, spaced);
+    return;
+  }
   const char* titles[] = {"Desk", "File", "Functions", "Quantize", "MIDI", "Flags", "Options", "Edit", "Copy"};
-  double x = 8;
+  double x = 8, mx = 0, my = 0;
+  st::mouse(&mx, &my);
+  bool hover_ok = !gem::active() && !G::IsAnyMouseDown(g_ctx) && G::IsWindowHovered(g_ctx, G::HoveredFlags_AllowWhenBlockedByPopup);
   for (const char* t : titles) {
     double w = st::text_w(t) + 16;
     std::string id = std::string("##menu") + t;
     bool open = G::IsPopupOpen(g_ctx, t);
     if (st::hit(id.c_str(), x - 4, 1, w - 4, 17)) G::OpenPopup(g_ctx, t);
+    else if (!open && hover_ok && mx >= x - 4 && mx < x + w - 8 && my >= 1 && my < 18) G::OpenPopup(g_ctx, t);
     if (open) st::fill(x - 4, 1, w - 4, 17, kInk);
     st::text(x, 1, t, Font::Sys, open ? kPaper : kInk);
     G::SetNextWindowPos(g_ctx, st::sx(x - 4), st::sy(18));
@@ -497,6 +578,17 @@ void menu_bar() {
       std::string m = t;
       if (m == "Desk") G::TextDisabled(g_ctx, "Rotator for REAPER");
       if (m == "File") {
+        if (G::MenuItem(g_ctx, "Load Song...")) choose_file("Load SONG", ".ROT", true, load_song);
+        if (G::MenuItem(g_ctx, "Save Song...")) choose_file("Save SONG", ".ROT", false, [](const std::string& p) { save(p, rotator::to_lines(*g_song)); });
+        G::Separator(g_ctx);
+        if (G::MenuItem(g_ctx, "Load Pattern...")) choose_file("Load PATTERN", ".PAT", true, load_pattern);
+        if (G::MenuItem(g_ctx, "Save Pattern...")) choose_file("Save PATTERN", ".PAT", false, [](const std::string& p) {
+          Song one;
+          if (g_song->patterns.count(g_pattern)) one.patterns[g_pattern] = g_song->patterns.at(g_pattern);
+          else one.patterns[g_pattern];
+          save(p, rotator::to_lines(one));
+        });
+        G::Separator(g_ctx);
         if (G::MenuItem(g_ctx, "New Pattern"))
           later("Rotator: new pattern", [](Song& s) {
             g_pattern = rotator::free_pattern(s);
@@ -504,7 +596,8 @@ void menu_bar() {
             return true;
           });
         if (G::MenuItem(g_ctx, "Delete Pattern"))
-          later("Rotator: delete pattern", [](Song& s) { return s.patterns.erase(g_pattern) > 0; });
+          confirm(gem::Icon::Question, "DELETE PATTERN?", "Rotator: delete pattern",
+                  [](Song& s) { return s.patterns.erase(g_pattern) > 0; });
         G::Separator(g_ctx);
         if (G::MenuItem(g_ctx, "Capture MIDI Item"))
           later("Rotator: capture MIDI item", [](Song& s) {
@@ -513,9 +606,13 @@ void menu_bar() {
             return false;
           });
         if (G::MenuItem(g_ctx, "Delete Track"))
-          later("Rotator: delete track", [](Song& s) { return s.patterns[g_pattern].tracks.erase(g_track) > 0; });
+          confirm(gem::Icon::Question, "DELETE TRACK?", "Rotator: delete track",
+                  [](Song& s) { return s.patterns[g_pattern].tracks.erase(g_track) > 0; });
       }
       if (m == "Options") {
+        if (G::MenuItem(g_ctx, "Pattern Overview")) gem::overview(g_pattern, [](int p) { g_pattern = p; });
+        if (G::MenuItem(g_ctx, "Notepad")) gem::notepad([] { commit("Rotator: notepad"); });
+        G::Separator(g_ctx);
         if (G::MenuItem(g_ctx, "Disable Transpose")) g_open_nx = true;
         if (G::MenuItem(g_ctx, "Output Filter...", nullptr, nullptr, find_track(*g_song, g_track) != nullptr)) g_open_filter = true;
         if (bool on = g_arrange_on; G::MenuItem(g_ctx, "Arrange Mode", "A", &on)) {
@@ -626,7 +723,7 @@ void menu_bar() {
           });
         G::Separator(g_ctx);
         if (G::MenuItem(g_ctx, "Clear Track", nullptr, nullptr, has))
-          later("Rotator: clear track", [](Song& s) {
+          confirm(gem::Icon::Question, "CLEAR TRACK?", "Rotator: clear track", [](Song& s) {
             ensure_track(s, g_track).events.clear();
             return true;
           });
@@ -1216,7 +1313,19 @@ void track_list(Song& song) {
       if (G::AcceptDragDropPayload(g_ctx, "NTR_TRACK", buf, sizeof buf) && std::atoi(buf) != n) {
         int src = std::atoi(buf);
         if (t) {
-          g_xsrc = src, g_xdst = n, g_open_xchg = true;
+          gem::alert(gem::Icon::Stop, "Exchange or Merge\nthese tracks?", {"CANCEL", "EXCHANGE", "MERGE"}, 2, [src, n](int b) {
+            if (b == 1)
+              later("Rotator: exchange tracks", [src, n](Song& s) {
+                rotator::exchange_tracks(s.patterns[g_pattern], src, n);
+                return true;
+              });
+            if (b == 2)
+              later("Rotator: merge tracks", [src, n](Song& s) {
+                rotator::merge_tracks(s.patterns[g_pattern], src, n);
+                g_track = n;
+                return true;
+              });
+          });
         } else {
           later("Rotator: copy track", [src, n](Song& s) {
             auto& tr = s.patterns[g_pattern].tracks;
@@ -1418,31 +1527,6 @@ void gem_chrome() {
 }
 
 // ---------- dialogs ----------
-
-void exchange_popup() {
-  if (g_open_xchg) G::OpenPopup(g_ctx, "Exchange or merge?"), g_open_xchg = false;
-  if (!G::BeginPopupModal(g_ctx, "Exchange or merge?", nullptr, G::WindowFlags_AlwaysAutoResize)) return;
-  G::Text(g_ctx, ("Exchange or Merge tracks " + std::to_string(g_xsrc) + " and " + std::to_string(g_xdst) + "?").c_str());
-  if (G::Button(g_ctx, "CANCEL") || G::IsKeyPressed(g_ctx, G::Key_Escape)) G::CloseCurrentPopup(g_ctx);
-  G::SameLine(g_ctx);
-  if (G::Button(g_ctx, "EXCHANGE")) {
-    later("Rotator: exchange tracks", [a = g_xsrc, b = g_xdst](Song& s) {
-      rotator::exchange_tracks(s.patterns[g_pattern], a, b);
-      return true;
-    });
-    G::CloseCurrentPopup(g_ctx);
-  }
-  G::SameLine(g_ctx);
-  if (G::Button(g_ctx, "MERGE")) {
-    later("Rotator: merge tracks", [a = g_xsrc, b = g_xdst](Song& s) {
-      rotator::merge_tracks(s.patterns[g_pattern], a, b);
-      g_track = b;
-      return true;
-    });
-    G::CloseCurrentPopup(g_ctx);
-  }
-  G::EndPopup(g_ctx);
-}
 
 void user_groove_popup(Song& song) {
   const char* title = "USER GROOVES";
@@ -1893,15 +1977,26 @@ void ui_frame(ReaProject* proj, Song& song) {
     bool visible = G::Begin(g_ctx, "Rotator", &open, G::WindowFlags_NoScrollbar | G::WindowFlags_NoScrollWithMouse);
     G::PopStyleColor(g_ctx);
     if (visible) {
-      shortcuts(song);
+      bool modal = gem::active();
+      if (!modal) shortcuts(song);
       g_scale = page_scale();
+      double px = 0, py = 0;
+      G::GetCursorScreenPos(g_ctx, &px, &py);
+      G::PushStyleVar(g_ctx, G::StyleVar_DisabledAlpha, 1);
+      G::BeginDisabled(g_ctx, modal);
       if (g_rmg) rmg_page(song);
       else if (g_edit_page) edit_page(song);
       else main_page(song);
-      exchange_popup();
+      G::EndDisabled(g_ctx);
+      G::PopStyleVar(g_ctx);
       no_transpose_popup(song);
       user_groove_popup(song);
       filter_popup(song);
+      if (gem::active()) {
+        G::SetCursorScreenPos(g_ctx, px, py);
+        st::begin(g_ctx, g_scale);
+        gem::frame(g_ctx, song);
+      }
       G::End(g_ctx);
     }
     G::PopFont(g_ctx);

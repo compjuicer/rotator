@@ -103,6 +103,7 @@ struct Song {
   int quant_range = 0, quant_strength = 100;  // capture: ticks either side of a grid step (0 = all), % moved
   std::array<UserGroove, 16> grooves;
   std::array<std::map<int, bool>, 10> mute_groups;
+  std::string notes;             // Notepad text
 };
 
 struct Item {

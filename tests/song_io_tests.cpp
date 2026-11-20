@@ -221,3 +221,16 @@ TEST_CASE("bad hyper lane type and orphan lanes are ignored") {
   REQUIRE(r.hyper_sets.size() == 1);
   CHECK(r.hyper_sets[0].lanes.empty());
 }
+
+TEST_CASE("song notes round-trip one line per record") {
+  Song s;
+  s.notes = "Intro: \"soft\"\n\nit's `here`\n";
+  auto l = to_lines(s);
+  REQUIRE(l.size() == 4);
+  CHECK(l[0] == "NOTE 'Intro: \"soft\"'");
+  CHECK(l[1] == "NOTE \"\"");
+  CHECK(from_lines(l).notes == s.notes);
+  s.notes = "one";
+  CHECK(from_lines(to_lines(s)).notes == "one");
+  CHECK(to_lines(Song{}).empty());
+}
