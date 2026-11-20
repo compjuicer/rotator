@@ -1,6 +1,16 @@
+// REAPER entry point. Dev builds (ROTATOR_DEV) load the core from a copy of rotator_core.dylib so it can be
+// hot-reloaded, and poll a file bridge for tools/reaper. Release builds link the core in.
+#ifdef ROTATOR_DEV
 #define REAPERAPI_IMPLEMENT
 #include "reaper_api.h"
+#else
+#include "reaper_core_api.h"
+#endif
 #include "core_abi.h"
+
+#ifndef ROTATOR_DEV
+extern "C" const RotatorCore* rotator_core_init(void* (*get_func)(const char*));
+#endif
 
 #include <dlfcn.h>
 #include <unistd.h>
@@ -30,8 +40,7 @@ struct Action {
   int cmd = 0;
 };
 std::deque<Action> g_actions;
-custom_action_register_t g_reload_reg = {0, "ROTATOR_RELOAD", "Rotator: Reload core", nullptr};
-int g_reload_cmd = 0;
+int g_reload_cmd = -1;
 
 struct Result {
   bool ok;
@@ -39,6 +48,15 @@ struct Result {
 };
 
 void log(const std::string& s) { ShowConsoleMsg(("Rotator: " + s + "\n").c_str()); }
+
+int action_index(const Action& a) {
+  for (int i = 0; i < g_core->num_actions; ++i)
+    if (a.id == g_core->actions[i].id) return i;
+  return -1;
+}
+
+#ifdef ROTATOR_DEV
+custom_action_register_t g_reload_reg = {0, "ROTATOR_RELOAD", "Rotator: Reload core", nullptr};
 
 Result load_core(const RotatorCore*& core, void*& handle) {
   fs::path dir = fs::path(ROTATOR_CORE_PATH).parent_path() / "reload";
@@ -56,12 +74,6 @@ Result load_core(const RotatorCore*& core, void*& handle) {
     return {false, "rotator_core_init missing or failed"};
   }
   return {true, ""};
-}
-
-int action_index(const Action& a) {
-  for (int i = 0; i < g_core->num_actions; ++i)
-    if (a.id == g_core->actions[i].id) return i;
-  return -1;
 }
 
 Result reload() {
@@ -86,12 +98,16 @@ Result reload() {
   return r;
 }
 
+#endif
+
 bool on_action(KbdSectionInfo*, int command, int, int, int, HWND) {
+#ifdef ROTATOR_DEV
   if (command == g_reload_cmd) {
     Result r = reload();
     log(r.ok ? "core reloaded" : "reload failed: " + r.text);
     return true;
   }
+#endif
   for (auto& a : g_actions)
     if (a.cmd == command) {
       int i = action_index(a);
@@ -108,6 +124,7 @@ void save_config(ProjectStateContext* ctx, bool, project_config_extension_t*) { 
 void begin_load(bool, project_config_extension_t*) { g_core->config_begin_load(); }
 project_config_extension_t g_config = {process_line, save_config, begin_load, nullptr};
 
+#ifdef ROTATOR_DEV
 const fs::path kBridge = ROTATOR_BRIDGE_DIR;
 
 std::string read_file(const fs::path& p) {
@@ -203,6 +220,7 @@ void on_timer() {
   poll_bridge();
   busy = false;
 }
+#endif
 
 }  // namespace
 
@@ -212,8 +230,9 @@ extern "C" REAPER_PLUGIN_DLL_EXPORT int REAPER_PLUGIN_ENTRYPOINT(REAPER_PLUGIN_H
     return 0;
   }
   if (rec->caller_version != REAPER_PLUGIN_VERSION || !rec->GetFunc) return 0;
-  if (REAPERAPI_LoadAPI(rec->GetFunc)) return 0;
   g_get_func = rec->GetFunc;
+#ifdef ROTATOR_DEV
+  if (REAPERAPI_LoadAPI(rec->GetFunc)) return 0;
   std::error_code ec;
   fs::remove_all(fs::path(ROTATOR_CORE_PATH).parent_path() / "reload", ec);
   Result r = load_core(g_core, g_handle);
@@ -221,6 +240,10 @@ extern "C" REAPER_PLUGIN_DLL_EXPORT int REAPER_PLUGIN_ENTRYPOINT(REAPER_PLUGIN_H
     log("core load failed: " + r.text);
     return 0;
   }
+#else
+  g_core = rotator_core_init(rec->GetFunc);
+  if (!g_core) return 0;
+#endif
   for (int i = 0; i < g_core->num_actions; ++i) {
     Action& a = g_actions.emplace_back();
     a.id = g_core->actions[i].id;
@@ -228,10 +251,12 @@ extern "C" REAPER_PLUGIN_DLL_EXPORT int REAPER_PLUGIN_ENTRYPOINT(REAPER_PLUGIN_H
     a.reg = {0, a.id.c_str(), a.desc.c_str(), nullptr};
     a.cmd = rec->Register("custom_action", &a.reg);
   }
-  g_reload_cmd = rec->Register("custom_action", &g_reload_reg);
   rec->Register("hookcommand2", (void*)on_action);
   rec->Register("projectconfig", &g_config);
+#ifdef ROTATOR_DEV
+  g_reload_cmd = rec->Register("custom_action", &g_reload_reg);
   fs::create_directories(kBridge, ec);
   rec->Register("timer", (void*)on_timer);
+#endif
   return 1;
 }

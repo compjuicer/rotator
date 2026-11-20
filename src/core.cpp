@@ -129,6 +129,8 @@ void run_action(int index) {
 
 // Debug hook for the bridge: SetExtState("Rotator", "cmd",
 //   "open" | "close" | "gam" | "list" | "tab <1-3>" | "track <1-16>" | "capture <pattern> <track>" | "add <chain> <bar> <pattern>").
+#ifdef ROTATOR_DEV
+// tools/reaper drives the UI through ExtState Rotator/cmd.
 void debug_command() {
   const char* cmd = GetExtState("Rotator", "cmd");
   if (!cmd || !*cmd) return;
@@ -163,9 +165,12 @@ void debug_command() {
     if (capture_selected_item(proj, g_songs[proj].patterns[p].tracks[t])) commit(proj, g_songs[proj], "Rotator: capture MIDI item");
   }
 }
+#endif
 
 void tick() {
+#ifdef ROTATOR_DEV
   debug_command();
+#endif
   if (ui_is_open()) {
     ReaProject* proj = current();
     ui_frame(proj, g_songs[proj]);

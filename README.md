@@ -29,6 +29,16 @@ See [docs/TUTORIAL.md](docs/TUTORIAL.md) for a walkthrough.
 - REAPER 7 on macOS (Apple Silicon or Intel)
 - [ReaImGui](https://github.com/cfillion/reaimgui) 0.10, installed via ReaPack
 
+## Install
+
+In REAPER: Extensions → ReaPack → Import repositories…, paste
+
+```
+https://github.com/compjuicer/rotator/raw/main/index.xml
+```
+
+then install **Rotator** from Extensions → ReaPack → Browse packages, and restart REAPER. Install ReaImGui the same way if you don't have it.
+
 ## Building
 
 ```sh
@@ -39,6 +49,8 @@ cmake --build build --target install_link   # symlinks the plugin into REAPER's 
 ```
 
 Restart REAPER, then run the action **Rotator: Show window**.
+
+This dev build hot-reloads the core and has a file bridge for the `tools/` scripts. `-DROTATOR_DEV=OFF` builds the single self-contained plugin that ships; `tools/release <version>` builds it, publishes a GitHub release and updates `index.xml`.
 
 ## Status
 

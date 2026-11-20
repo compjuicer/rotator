@@ -14,3 +14,4 @@ docs/video-frames/
 .cache/
 .claude/settings.json
 docs/screenshots/.claude/
+build-release/

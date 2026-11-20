@@ -723,7 +723,7 @@ void box_row(Song& song) {
   value_box(332, 41, 56, 28, sig, "SIGNATURE");
   for (int half = 0; half < 2; ++half) {
     int v = half ? denom : num;
-    st::Value sv{&v, half ? 1 : 1, half ? 64 : 99, [](int n) { return std::string(); }};
+    st::Value sv{&v, half ? 1 : 1, half ? 64 : 99, [](int) { return std::string(); }};
     G::PushID(g_ctx, half ? "sigd" : "sign");
     if (st::value("##sig", 332 + half * 28, 41, 28, 18, sv) && st::final()) {
       if (half) v = v > denom ? std::min(64, denom * 2) : std::max(1, denom / 2);

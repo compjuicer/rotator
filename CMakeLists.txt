@@ -20,7 +20,28 @@ target_include_directories(rotator_model PUBLIC src)
 target_include_directories(rotator_model SYSTEM PRIVATE vendor/reaper-sdk/WDL)
 target_compile_options(rotator_model PRIVATE -Wall -Wextra)
 
-foreach(mod reaper_rotator rotator_core)
+option(ROTATOR_DEV "Hot-reloadable core and tools/reaper file bridge (off for release builds)" ON)
+
+# Fonts compiled into the binary.
+set(FONTS_H "${CMAKE_BINARY_DIR}/generated/fonts.h")
+file(WRITE "${FONTS_H}" "#pragma once\n")
+foreach(pair "kFontAtari8x16:AtariST_8x16.ttf" "kFont6x6:Rotator_6x6.ttf")
+  string(REPLACE ":" ";" pair "${pair}")
+  list(GET pair 0 sym)
+  list(GET pair 1 file)
+  file(READ "${CMAKE_SOURCE_DIR}/vendor/fonts/${file}" hex HEX)
+  string(REGEX REPLACE "([0-9a-f][0-9a-f])" "0x\\1," bytes "${hex}")
+  file(APPEND "${FONTS_H}" "inline const unsigned char ${sym}[] = {${bytes}};\n")
+  set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/vendor/fonts/${file}")
+endforeach()
+
+set(CORE_SOURCES src/core.cpp src/reaper_out.cpp src/ui.cpp src/ed_event.cpp src/ed_matrix.cpp src/ed_hyper.cpp src/st.cpp)
+set(PLUGINS reaper_rotator)
+if(ROTATOR_DEV)
+  list(APPEND PLUGINS rotator_core)
+endif()
+
+foreach(mod ${PLUGINS})
   add_library(${mod} MODULE)
   target_include_directories(${mod} PRIVATE src)
   target_include_directories(${mod} SYSTEM PRIVATE vendor/reaper-sdk/sdk vendor/reaper-sdk/WDL)
@@ -28,16 +49,22 @@ foreach(mod reaper_rotator rotator_core)
   set_target_properties(${mod} PROPERTIES PREFIX "" SUFFIX ".dylib")
 endforeach()
 
-target_sources(rotator_core PRIVATE src/core.cpp src/reaper_out.cpp src/ui.cpp src/ed_event.cpp src/ed_matrix.cpp src/ed_hyper.cpp src/st.cpp)
-target_compile_definitions(rotator_core PRIVATE ROTATOR_FONT_DIR="${CMAKE_SOURCE_DIR}/vendor/fonts")
-target_include_directories(rotator_core SYSTEM PRIVATE vendor/reaimgui)
-target_link_libraries(rotator_core PRIVATE rotator_model)
-
-target_sources(reaper_rotator PRIVATE src/loader.cpp)
-target_compile_definitions(reaper_rotator PRIVATE
-  ROTATOR_CORE_PATH="$<TARGET_FILE:rotator_core>"
-  ROTATOR_BRIDGE_DIR="${CMAKE_SOURCE_DIR}/.bridge")
-add_dependencies(reaper_rotator rotator_core)
+if(ROTATOR_DEV)
+  set(CORE rotator_core)
+  target_sources(reaper_rotator PRIVATE src/loader.cpp)
+  target_compile_definitions(reaper_rotator PRIVATE ROTATOR_DEV
+    ROTATOR_CORE_PATH="$<TARGET_FILE:rotator_core>"
+    ROTATOR_BRIDGE_DIR="${CMAKE_SOURCE_DIR}/.bridge")
+  add_dependencies(reaper_rotator rotator_core)
+  target_compile_definitions(rotator_core PRIVATE ROTATOR_DEV)
+else()
+  set(CORE reaper_rotator)
+  target_sources(reaper_rotator PRIVATE src/loader.cpp)
+endif()
+target_sources(${CORE} PRIVATE ${CORE_SOURCES})
+target_include_directories(${CORE} PRIVATE "${CMAKE_BINARY_DIR}/generated")
+target_include_directories(${CORE} SYSTEM PRIVATE vendor/reaimgui)
+target_link_libraries(${CORE} PRIVATE rotator_model)
 
 enable_testing()
 add_executable(model_tests tests/model_tests.cpp tests/song_io_tests.cpp tests/ed_event_tests.cpp tests/ed_matrix_tests.cpp tests/ed_hyper_tests.cpp tests/recorder_tests.cpp)
