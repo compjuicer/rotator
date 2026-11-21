@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<index version="1" name="Rotator">
+  <category name="Extensions">
+    <reapack name="reaper_rotator.ext" type="extension" desc="Rotator">
+      <metadata>
+        <description><![CDATA[Pattern/arrange MIDI sequencer with an Atari ST look. Needs ReaImGui.]]></description>
+        <link rel="website">https://github.com/compjuicer/rotator</link>
+      </metadata>
+      <version name="0.1.0" author="compjuicer" time="2026-11-21T01:54:06Z">
+        <source platform="darwin" file="reaper_rotator.dylib">https://github.com/compjuicer/rotator/releases/download/v0.1.0/reaper_rotator.dylib</source>
+        <source platform="win64" file="reaper_rotator.dll">https://github.com/compjuicer/rotator/releases/download/v0.1.0/reaper_rotator.dll</source>
+        <source platform="linux64" file="reaper_rotator.so">https://github.com/compjuicer/rotator/releases/download/v0.1.0/reaper_rotator.so</source>
+      </version>
+    </reapack>
+  </category>
+</index>
